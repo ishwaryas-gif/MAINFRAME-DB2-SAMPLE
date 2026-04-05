@@ -1,0 +1,136 @@
+IDENTIFICATION DIVISION.                                 
+PROGRAM-ID. SAMPLE1                                      
+AUTHOR. ISHU.                                            
+ENVIRONMENT DIVISION.                                    
+INPUT-OUTPUT SECTION.                                    
+FILE-CONTROL.                                            
+    SELECT OUT-FILE ASSIGN TO OUTFILE                    
+    ORGANIZATION IS SEQUENTIAL                           
+    ACCESS MODE IS SEQUENTIAL                            
+    FILE STATUS IS WS-OUT-STATUS.                        
+DATA DIVISION.                                           
+FILE SECTION.                                            
+FD OUT-FILE.                                             
+01 OUT-REC  PIC X(80).                                   
+WORKING-STORAGE SECTION.                                 
+01 WS-OUT-STATUS  PIC XX.                                
+01 WS-EOF  PIC X(1) VALUE 'N'.                           
+   88 END-OF-CURSOR  VALUE 'Y'.                          
+01 WS-PROCESSED  PIC 9(5) VALUE 0.                       
+01 WS-FAILED  PIC 9(5) VALUE 0.                          
+01 WS-RECORDS-UPDATED  PIC 9(5) VALUE 0.                 
+01 WS-INTEREST-AMT  PIC S9(11)V99 COMP-3.                
+01 WS-INTEREST-RATE  PIC S9(1)V9(4) COMP-3 VALUE 0.0900. 
+01 WS-OUTPUT-REC.                                        
+   05 WS-OUT-ACCT-NO  PIC X(08).                            05 FILLER  PIC X(1) VALUE SPACES.      
+   05 WS-OUT-CUST-NAME  PIC X(30).        
+   05 FILLER  PIC X(1) VALUE SPACES.      
+   05 WS-OUT-ACCT-TYPE  PIC X(02).        
+   05 FILLER  PIC X(1) VALUE SPACES.      
+   05 WS-OUT-BRANCH  PIC X(04).           
+   05 FILLER  PIC X(1) VALUE SPACES.      
+   05 WS-OUT-BALANCE  PIC S9(11)V99.      
+   05 FILLER  PIC X(1) VALUE SPACES.      
+   05 WS-OUT-INT-AMT  PIC S9(11)V99.      
+   05 FILLER  PIC X(1) VALUE SPACES.      
+01 WS-CURRENT-DATE.                       
+   05 WS-CURR-YEAR  PIC 9(4).             
+   05 WS-CURR-MONTH  PIC 9(2).            
+   05 WS-CURR-DAY  PIC 9(2).              
+01 WS-DB2-DATE  PIC X(10).                
+    EXEC SQL                              
+     INCLUDE SQLCA                        
+    END-EXEC.                             
+                                          
+    EXEC SQL                              
+     INCLUDE SAMPLE1                      
+    END-EXEC.                             
+                                          
+    EXEC SQL                              
+     DECLARE ACCT-CURSOR CURSOR FOR            
+        SELECT ACCT_NO,                                 
+              CUST_NAME,                               
+              ACCT_TYPE,                               
+              BRANCH_CODE,                             
+              OPEN_DATE,                               
+              BALANCE,                                 
+              INTEREST_RATE                            
+       FROM Z71118.ACCOUNTS                            
+       ORDER BY ACCT_NO ASC                            
+    END-EXEC.                                          
+                                                       
+PROCEDURE DIVISION.                                    
+MAIN-PARA.                                             
+    PERFORM START-CALC                                 
+    EXEC SQL                                           
+       CLOSE ACCT-CURSOR                               
+    END-EXEC                                           
+    IF SQLCODE NOT = 0                                 
+      DISPLAY 'ERROR CLOSING CURSOR SQLCODE=' SQLCODE  
+    END-IF                                             
+    CLOSE OUT-FILE                                     
+    PERFORM DISPLAY-MSG                                
+    STOP RUN.                                          
+START-CALC.                                            
+    MOVE FUNCTION CURRENT-DATE(1:4) TO WS-CURR-YEAR    
+    MOVE FUNCTION CURRENT-DATE(5:2) TO WS-CURR-MONTH   
+    MOVE FUNCTION CURRENT-DATE(7:2) TO WS-CURR-DAY  
+    STRING WS-CURR-YEAR  DELIMITED SIZE             
+           '-'           DELIMITED SIZE             
+           WS-CURR-MONTH DELIMITED SIZE             
+           '-'           DELIMITED SIZE             
+           WS-CURR-DAY   DELIMITED SIZE             
+       INTO WS-DB2-DATE                             
+    OPEN OUTPUT OUT-FILE                            
+    EXEC SQL                                        
+      OPEN ACCT-CURSOR                              
+    END-EXEC                                        
+    PERFORM CALC-INT UNTIL END-OF-CURSOR.           
+CALC-INT.                                           
+    EXEC SQL                                        
+        FETCH ACCT-CURSOR                           
+        INTO :ACCT-NO,                              
+             :CUST-NAME,                            
+             :ACCT-TYPE,                            
+             :BRANCH-CODE,                          
+             :OPEN-DATE,                            
+             :BALANCE,                              
+             :INTEREST-RATE                         
+    END-EXEC                                        
+    IF SQLCODE = 100                                
+        MOVE 'Y' TO WS-EOF                          
+    END-IF      
+    IF SQLCODE NOT = 0                                 
+        ADD 1 TO WS-FAILED                             
+        MOVE 'Y' TO WS-EOF                             
+    END-IF                                             
+    ADD 1 TO WS-PROCESSED.                             
+    COMPUTE WS-INTEREST-AMT = BALANCE * INTEREST-RATE  
+    EXEC SQL                                           
+        UPDATE Z71118.ACCOUNTS                         
+        SET    INTEREST_AMT  = :WS-INTEREST-AMT,       
+               LAST_UPDATED  = :WS-DB2-DATE            
+        WHERE  ACCT_NO       = :ACCT-NO                
+    END-EXEC                                           
+    IF SQLCODE = 0                                     
+        ADD 1 TO WS-RECORDS-UPDATED                    
+        ELSE                                           
+           DISPLAY 'UPDATE ERROR FOR ACCT=' ACCT-NO    
+           ADD 1 TO WS-FAILED                          
+    END-IF                                             
+    MOVE SPACES TO WS-OUTPUT-REC                       
+    MOVE ACCT-NO             TO WS-OUT-ACCT-NO         
+    MOVE CUST-NAME-TEXT      TO WS-OUT-CUST-NAME       
+    MOVE ACCT-TYPE           TO WS-OUT-ACCT-TYPE       
+    MOVE BRANCH-CODE         TO WS-OUT-BRANCH          
+    MOVE BALANCE             TO WS-OUT-BALANCE         
+    MOVE WS-INTEREST-AMT     TO WS-OUT-INT-AMT         
+    WRITE OUT-REC FROM WS-OUTPUT-REC.                  
+DISPLAY-MSG.                                         
+    DISPLAY '**********************************'     
+    DISPLAY '*INTCALC END OF JOB SUMMARY    *'       
+    DISPLAY '**********************************'     
+    DISPLAY '* RECORDS READ    : ' WS-PROCESSED      
+    DISPLAY '* RECORDS UPDATED : ' WS-RECORDS-UPDATED
+    DISPLAY '* FAILED          : ' WS-FAILED         
+    DISPLAY '**********************************'.    
