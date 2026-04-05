@@ -98,7 +98,8 @@ CALC-INT.
              :INTEREST-RATE                         
     END-EXEC                                        
     IF SQLCODE = 100                                
-        MOVE 'Y' TO WS-EOF                          
+        MOVE 'Y' TO WS-EOF
+        GO TO CALC-INT-EXIT
     END-IF      
     IF SQLCODE NOT = 0                                 
         ADD 1 TO WS-FAILED                             
@@ -134,3 +135,5 @@ DISPLAY-MSG.
     DISPLAY '* RECORDS UPDATED : ' WS-RECORDS-UPDATED
     DISPLAY '* FAILED          : ' WS-FAILED         
     DISPLAY '**********************************'.    
+CALC-INT-EXIT.
+    EXIT.
