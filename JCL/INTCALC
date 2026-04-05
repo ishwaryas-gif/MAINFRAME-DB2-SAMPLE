@@ -1,0 +1,32 @@
+//INTCALC  JOB (ACCT),'INTCALC',CLASS=A,NOTIFY=&SYSUID      
+//COMPILE  EXEC PROC=DB2CBL,MBR=SAMPLE1                     
+//COBOL.SYSIN  DD DSN=Z71118.ISHU.COBOL(SAMPLE1),DISP=SHR   
+//COBOL.SYSLIB DD DSN=Z71118.ISHU.DCLLIB,DISP=SHR           
+//COBOL.DBRMLIB DD DSN=Z71118.ISHU.DBRM(SAMPLE1),DISP=SHR   
+//LKED.SYSLMOD DD DSN=Z71118.ISHU.LOAD(SAMPLE1),DISP=SHR    
+//BIND.DBRMLIB DD DSN=Z71118.ISHU.DBRM,DISP=SHR             
+//*                                                         
+//BINDSTP  EXEC PGM=IKJEFT01                                
+//STEPLIB  DD DSN=DSND10.SDSNLOAD,DISP=SHR                  
+//DBRMLIB  DD DSN=Z71118.ISHU.DBRM,DISP=SHR                 
+//SYSTSPRT DD SYSOUT=*                                      
+//SYSPRINT DD SYSOUT=*                                      
+//SYSUDUMP DD DUMMY                                         
+//SYSTSIN  DD *                                             
+ DSN SYSTEM(DBDG)                                           
+ BIND PLAN(Z71118) PKLIST(Z71118.*) MEMBER(SAMPLE1) -       
+      ACT(REP) ISO(CS) ENCODING(EBCDIC)                     
+ END                                                        
+/*                                                          
+//RUN     EXEC PGM=IKJEFT01,COND=(8,LT,COMPILE.COBOL)       
+//STEPLIB  DD DSN=DSND10.SDSNLOAD,DISP=SHR                  
+//         DD DSN=Z71118.ISHU.LOAD,DISP=SHR                 
+//OUTFILE  DD DSN=Z71118.ISHU.OUTPUT(INTOUT),DISP=SHR       
+//SYSPRINT DD SYSOUT=*                                      
+//SYSTSPRT DD SYSOUT=*                
+//SYSUDUMP DD SYSOUT=*                
+//SYSTSIN DD *                        
+ DSN SYSTEM(DBDG)                     
+ RUN PROGRAM(SAMPLE1) PLAN(Z71118) -  
+     LIB('Z71118.ISHU.LOAD')          
+/*                                    
